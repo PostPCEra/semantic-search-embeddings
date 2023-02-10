@@ -53,17 +53,11 @@ df.embeds = df.embeds.apply(eval).apply(np.array)
 # fix the reply_to column
 df['reply_to'] = df['reply_to'].apply(lambda x: eval(x))
 
-# filter out tweets greater than string length 10
-df = df[ df['tweet'].apply(lambda x: len(x) > 10) ]
-
 df = df[['tweet', 'nlikes', 'nreplies', 'nretweets', 'reply_to', 'link', 'embeds', 'retweet']]
-
-# filter out replies
-df_no_replies = df[ df['reply_to'].apply(lambda x: len(list(x)) <= 0) ]
 
 print("df formatted")
 
-def search_text(__df, query, n=5):
+def search_text(__df, query, n=2000):
     embedding = get_embedding(
         query,
         engine=MODEL
@@ -87,11 +81,22 @@ def searchFunc(query):
     return jsonify(result), 202
 
 @app.route("/search", methods=["POST"])
-def searchPostFunc(query):
+def searchPostFunc():
     data = request.json
-    if data.get('query'):
-        query = data.get('query')
+    query = data.get('query')
+    tweetLengthLimit = data.get('tweetLengthLimit') or 0
+    excludeReplies = data.get('excludeReplies') or False
+    if query:
         res = search_text(df, query)
+
+        if tweetLengthLimit > 0:
+            # filter out tweets greater than string length 10
+            res = res[ res['tweet'].apply(lambda x: len(x) > tweetLengthLimit) ]
+
+        if excludeReplies:
+            # filter out replies
+            res = res[ res['reply_to'].apply(lambda x: len(list(x)) <= 0) ]
+
         result = json.loads(res.to_json(orient = "records"))
         return jsonify(result), 202
 
