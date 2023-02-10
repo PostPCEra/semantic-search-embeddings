@@ -14,5 +14,5 @@ emoji
 matplotlib
 plotly
 scipy
-sklearn
 python-dotenv
+scikit-learn
