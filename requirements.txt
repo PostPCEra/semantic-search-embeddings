@@ -13,4 +13,5 @@ requests
 emoji
 matplotlib
 plotly
+scipy
 python-dotenv
