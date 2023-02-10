@@ -2,53 +2,100 @@ from flask import Flask, jsonify, request, send_from_directory, abort
 import os
 from waitress import serve
 from flask_cors import CORS
-from tasks import createSomeAsyncTask
-from store import createTasksTable, insertTask, getTaskById, doesIdExists
+from openai.embeddings_utils import get_embedding, cosine_similarity
 
-from celery.result import AsyncResult
+import openai
+import os
+import emoji
+import pandas as pd
+import io
+import json
+
+from tqdm import tqdm
+
+import numpy as np
+
+from dotenv import load_dotenv
+load_dotenv()
+
+openaiOrg = os.getenv('openaiOrg', default=None)
+openaiKey = os.getenv('openaiKey', default=None)
+authKey = os.getenv('authKey', default=None)
+
+openai.organization = openaiOrg
+openai.api_key = openaiKey
 
 app = Flask(__name__)
 CORS(app)
 
-createTasksTable()
+MODEL = "text-embedding-ada-002"
+
+hdr = {
+    'User-Agent': 'Mozilla/5.0 (X11; Linux x86_64) AppleWebKit/537.11 (KHTML, like Gecko) Chrome/23.0.1271.64 Safari/537.11',
+    'Accept': 'text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8',
+    'Accept-Charset': 'ISO-8859-1,utf-8;q=0.7,*;q=0.3',
+    'Accept-Encoding': 'none',
+    'Accept-Language': 'en-US,en;q=0.8',
+    'Connection': 'keep-alive',
+    'X-CF-AUTH-KEY': authKey
+}
+
+print("downloading csvs")
+
+embed_files = ['https://pulltweets.lohxt.workers.dev/embeds__0_2500__elonmusk__Yyjp4tU_1b.csv','https://pulltweets.lohxt.workers.dev/embeds__2500_5000__elonmusk__Yyjp4tU_1b.csv','https://pulltweets.lohxt.workers.dev/embeds__5000_7500__elonmusk__Yyjp4tU_1b.csv','https://pulltweets.lohxt.workers.dev/embeds__7500_10000__elonmusk__Yyjp4tU_1b.csv','https://pulltweets.lohxt.workers.dev/embeds__10000_12500__elonmusk__Yyjp4tU_1b.csv','https://pulltweets.lohxt.workers.dev/embeds__12500_15000__elonmusk__Yyjp4tU_1b.csv','https://pulltweets.lohxt.workers.dev/embeds__15000_17500__elonmusk__Yyjp4tU_1b.csv','https://pulltweets.lohxt.workers.dev/embeds__17500_20000__elonmusk__Yyjp4tU_1b.csv']
+df = pd.concat((pd.read_csv(f, storage_options=hdr) for f in embed_files), ignore_index=True)
+
+print("downloaded csvs")
+print(df.shape)
+
+# fix the embeds column
+df.embeds = df.embeds.apply(eval).apply(np.array)
+# fix the reply_to column
+df['reply_to'] = df['reply_to'].apply(lambda x: eval(x))
+
+# filter out tweets greater than string length 10
+df = df[ df['tweet'].apply(lambda x: len(x) > 10) ]
+
+df = df[['tweet', 'nlikes', 'nreplies', 'nretweets', 'reply_to', 'link', 'embeds', 'retweet']]
+
+# filter out replies
+df_no_replies = df[ df['reply_to'].apply(lambda x: len(list(x)) <= 0) ]
+
+print("df formatted")
+
+def search_text(__df, query, n=5):
+    embedding = get_embedding(
+        query,
+        engine=MODEL
+    )
+    __df["similarities"] = __df.embeds.apply(lambda x: cosine_similarity(x, embedding))
+
+    ___df = __df.sort_values("similarities", ascending=False)
+    res = ___df[___df['similarities'].apply(lambda x: x > 0.8)]
+    res['tweet'] = res['tweet'].apply(lambda x: emoji.emojize(x))
+
+    return res.head(n)
 
 @app.route('/')
 def index():
     return jsonify({"status":"alive" }), 202
 
-@app.route("/create-task/<id>", methods=["GET"])
-def createSomeTaskFunc(id):
-    task = doesIdExists(id)
-    _id = task.get("id", "")
-    if _id:
-        return jsonify({"task_id": task.get("taskId", ""), "exists": 1}), 202
-    task = createSomeAsyncTask.delay(int(id))
-    taskDetails = {
-        "id": id,
-        "taskId": task.id
-    }
-    insertTask(taskDetails);
-    return jsonify({"task_id": task.id}), 202
+@app.route("/search/<query>", methods=["GET"])
+def searchFunc(query):
+    res = search_text(df, query)
+    result = json.loads(res.to_json(orient = "records"))
+    return jsonify(result), 202
 
-@app.route("/fetch-task-progress/<taskId>", methods=["GET"])
-def fetchTaskProgress(taskId):
-    task_result = AsyncResult(taskId)
-    task = getTaskById(taskId)
-    id = task.get("id", "")
-    result = {}
-    if task_result.state == 'PROGRESS':
-        result = {
-            "id": id,
-            "task_status": task_result.status,
-            "progress": task_result.result['x'],
-        }
-    elif task_result.state == 'SUCCESS':
-        result = {
-            "id": id,
-            "task_status": task_result.status,
-            "progress": task_result.result['x'],
-        }
-    return jsonify(result), 200
+@app.route("/search", methods=["POST"])
+def searchPostFunc(query):
+    data = request.json
+    if data.get('query'):
+        query = data.get('query')
+        res = search_text(df, query)
+        result = json.loads(res.to_json(orient = "records"))
+        return jsonify(result), 202
+
+    return jsonify({"error":"invalid query"}), 202
 
 if __name__ == "__main__":
     serve(app, host="0.0.0.0", port=os.getenv("PORT", default=5000))

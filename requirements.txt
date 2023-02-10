@@ -6,3 +6,11 @@ celery==5.2.3
 redis==4.1.4
 waitress
 flask-cors
+tqdm
+openai
+pandas
+requests
+emoji
+matplotlib
+plotly
+python-dotenv
