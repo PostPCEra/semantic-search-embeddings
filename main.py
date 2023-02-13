@@ -95,8 +95,13 @@ def searchPostFunc():
     tweetLengthLimit = data.get('tweetLengthLimit') or 0
     excludeReplies = data.get('excludeReplies') or False
     count = data.get('count') or 100
+    includeEmbeds = data.get('includeEmbeds') or False
     if query:
         res = search_text(df, query)
+
+        if not includeEmbeds:
+            # exclude embeds
+            res = res[res.columns.difference(['embeds'])]
 
         if tweetLengthLimit > 0:
             # filter out tweets greater than string length 10
