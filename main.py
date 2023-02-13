@@ -3,16 +3,13 @@ import os
 from waitress import serve
 from flask_cors import CORS
 from openai.embeddings_utils import get_embedding, cosine_similarity
-
 import openai
 import os
 import emoji
 import pandas as pd
 import io
 import json
-
 from tqdm import tqdm
-
 import numpy as np
 
 from dotenv import load_dotenv
@@ -21,12 +18,13 @@ load_dotenv()
 openaiOrg = os.getenv('openaiOrg', default=None)
 openaiKey = os.getenv('openaiKey', default=None)
 authKey = os.getenv('authKey', default=None)
-
-openai.organization = openaiOrg
-openai.api_key = openaiKey
+bucketUrl = os.getenv('bucketUrl', default=None)
 
 app = Flask(__name__)
 CORS(app)
+
+openai.organization = openaiOrg
+openai.api_key = openaiKey
 
 MODEL = "text-embedding-ada-002"
 
@@ -42,7 +40,17 @@ hdr = {
 
 print("downloading csvs")
 
-embed_files = ['https://pulltweets.lohxt.workers.dev/embeds__0_2500__elonmusk__Yyjp4tU_1b.csv','https://pulltweets.lohxt.workers.dev/embeds__2500_5000__elonmusk__Yyjp4tU_1b.csv','https://pulltweets.lohxt.workers.dev/embeds__5000_7500__elonmusk__Yyjp4tU_1b.csv','https://pulltweets.lohxt.workers.dev/embeds__7500_10000__elonmusk__Yyjp4tU_1b.csv','https://pulltweets.lohxt.workers.dev/embeds__10000_12500__elonmusk__Yyjp4tU_1b.csv','https://pulltweets.lohxt.workers.dev/embeds__12500_15000__elonmusk__Yyjp4tU_1b.csv','https://pulltweets.lohxt.workers.dev/embeds__15000_17500__elonmusk__Yyjp4tU_1b.csv','https://pulltweets.lohxt.workers.dev/embeds__17500_20000__elonmusk__Yyjp4tU_1b.csv']
+embed_files = [
+    f"{bucketUrl}/embeds__0_2500__elonmusk__Yyjp4tU_1b.csv",
+    f"{bucketUrl}/embeds__2500_5000__elonmusk__Yyjp4tU_1b.csv",
+    f"{bucketUrl}/embeds__5000_7500__elonmusk__Yyjp4tU_1b.csv",
+    f"{bucketUrl}/embeds__7500_10000__elonmusk__Yyjp4tU_1b.csv",
+    f"{bucketUrl}/embeds__10000_12500__elonmusk__Yyjp4tU_1b.csv",
+    f"{bucketUrl}/embeds__12500_15000__elonmusk__Yyjp4tU_1b.csv",
+    f"{bucketUrl}/embeds__15000_17500__elonmusk__Yyjp4tU_1b.csv",
+    f"{bucketUrl}/embeds__17500_20000__elonmusk__Yyjp4tU_1b.csv"
+]
+
 df = pd.concat((pd.read_csv(f, storage_options=hdr) for f in embed_files), ignore_index=True)
 
 print("downloaded csvs")
@@ -86,6 +94,7 @@ def searchPostFunc():
     query = data.get('query')
     tweetLengthLimit = data.get('tweetLengthLimit') or 0
     excludeReplies = data.get('excludeReplies') or False
+    count = data.get('count') or 100
     if query:
         res = search_text(df, query)
 
@@ -97,7 +106,7 @@ def searchPostFunc():
             # filter out replies
             res = res[ res['reply_to'].apply(lambda x: len(list(x)) <= 0) ]
 
-        result = json.loads(res.to_json(orient = "records"))
+        result = json.loads(res.head(count).to_json(orient = "records"))
         return jsonify(result), 202
 
     return jsonify({"error":"invalid query"}), 202
