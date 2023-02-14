@@ -42,13 +42,13 @@ print("downloading csvs")
 
 embed_files = [
     f"{bucketUrl}/embeds__0_2500__elonmusk__Yyjp4tU_1b.csv",
-    # f"{bucketUrl}/embeds__2500_5000__elonmusk__Yyjp4tU_1b.csv",
-    # f"{bucketUrl}/embeds__5000_7500__elonmusk__Yyjp4tU_1b.csv",
-    # f"{bucketUrl}/embeds__7500_10000__elonmusk__Yyjp4tU_1b.csv",
-    # f"{bucketUrl}/embeds__10000_12500__elonmusk__Yyjp4tU_1b.csv",
-    # f"{bucketUrl}/embeds__12500_15000__elonmusk__Yyjp4tU_1b.csv",
-    # f"{bucketUrl}/embeds__15000_17500__elonmusk__Yyjp4tU_1b.csv",
-    # f"{bucketUrl}/embeds__17500_20000__elonmusk__Yyjp4tU_1b.csv"
+    f"{bucketUrl}/embeds__2500_5000__elonmusk__Yyjp4tU_1b.csv",
+    f"{bucketUrl}/embeds__5000_7500__elonmusk__Yyjp4tU_1b.csv",
+    f"{bucketUrl}/embeds__7500_10000__elonmusk__Yyjp4tU_1b.csv",
+    f"{bucketUrl}/embeds__10000_12500__elonmusk__Yyjp4tU_1b.csv",
+    f"{bucketUrl}/embeds__12500_15000__elonmusk__Yyjp4tU_1b.csv",
+    f"{bucketUrl}/embeds__15000_17500__elonmusk__Yyjp4tU_1b.csv",
+    f"{bucketUrl}/embeds__17500_20000__elonmusk__Yyjp4tU_1b.csv"
 ]
 
 df = pd.concat((pd.read_csv(f, storage_options=hdr) for f in embed_files), ignore_index=True)
