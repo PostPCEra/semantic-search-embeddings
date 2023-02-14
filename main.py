@@ -61,7 +61,7 @@ df.embeds = df.embeds.apply(eval).apply(np.array)
 # fix the reply_to column
 df['reply_to'] = df['reply_to'].apply(lambda x: eval(x))
 
-df = df[['tweet', 'nlikes', 'nreplies', 'nretweets', 'reply_to', 'link', 'embeds', 'retweet']]
+df = df[['tweet', 'nlikes', 'nreplies', 'nretweets', 'reply_to', 'link', 'embeds', 'retweet', 'created_at', 'conversation_id', 'id', 'retweet', 'retweet_date']]
 
 print("df formatted")
 
